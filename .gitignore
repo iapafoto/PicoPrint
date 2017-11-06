@@ -1,0 +1,6 @@
+
+build/classes/.netbeans_update_resources
+build/classes/bezier/Bezier.class
+build/classes/bezier/BezierHistory.class
+*.class
+build/classes/bezier/ParseException.rs
