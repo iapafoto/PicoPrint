@@ -4,3 +4,4 @@ build/classes/bezier/Bezier.class
 build/classes/bezier/BezierHistory.class
 *.class
 build/classes/bezier/ParseException.rs
+/dist/

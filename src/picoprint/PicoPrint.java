@@ -105,11 +105,11 @@ public class PicoPrint {
         double cx2 = 650, cy2 = 50;
         double x0 = 200, y0 = 400;
         
-        File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\SebWriter\\drawingRaw.svg");
+        File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\PicoPrint\\res\\drawingRaw.svg");
         // TODO code application logic here
         BezierPath parser = new BezierPath();
         try  {
-            BufferedReader r = Files.newBufferedReader(svgFile.toPath(), Charset.defaultCharset());
+              BufferedReader r = Files.newBufferedReader(svgFile.toPath(), Charset.defaultCharset());
             StringBuilder sb = new StringBuilder();
             r.lines().forEach(line -> sb.append(line));
             parser.parsePathString(sb.toString());
@@ -162,7 +162,7 @@ public class PicoPrint {
             for (double d=0; d<dist; d+=dt) {
                 currentPos = mix(lastPos,pos, Math.min(d/dist,1.));
                 panel.repaint();
-                    try {
+                try {
                     Thread.sleep(10);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
