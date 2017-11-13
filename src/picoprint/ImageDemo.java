@@ -46,10 +46,10 @@ public class ImageDemo {
         @Override
         public void paint(Graphics graphics) {
             Graphics2D g2 = (Graphics2D) graphics;
-        //    g2.setStroke(new BasicStroke(.5f));
+            g2.setStroke(new BasicStroke(1.f));
             g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
             g2.setRenderingHint(KEY_STROKE_CONTROL, VALUE_STROKE_PURE);
-            g2.setColor(new Color(0,0,0,24));
+            g2.setColor(new Color(0,0,0,32));
           //  g2.draw(pathRemix);
             for (int t=0; t<time; t++) {
                 g2.draw(pathRemix.get(t));
@@ -62,7 +62,7 @@ public class ImageDemo {
     };
 
     public static void main(String[] args) throws Exception {
-        String filename = "C:\\Users\\durands\\Desktop\\visage.png";
+        String filename = "C:\\Users\\durands\\Desktop\\mila2.png";
   
         JFrame editorFrame = new JFrame("Image Demo");
         editorFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -194,7 +194,7 @@ public class ImageDemo {
         
         double sz = 1;
         
-        double[] pts = new double[(int)(w*h)+1];
+        double[] pts = new double[(int)(w*h*1.)];
         boolean transition = false;
         int nb = pts.length/2;
         for (int i=0; i<nb; i++) {
@@ -204,26 +204,28 @@ public class ImageDemo {
             }
       //      if (i>pts.lengthpts.length/8) {
       //          kinit = 32 + 128*smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
-            if (i<nb/10) {
-                kinit = 32 + (128./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
-            } else if (i<nb/4) {
-                draw = new byte[w*h];
-                kinit = 16 + (94./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
-            } else {
+          //  if (i<nb/16) {
+          //      kinit = 32 + (128./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
+          //  } else 
+            if (i<nb/4) {
+                //draw = new byte[w*h];
+                kinit = 16 + (92./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
+            } else 
+{
                 if (!transition) {
                     transition = true;
-                    sz = 1;
-                    draw = new byte[w*h];
+             //       sz = 1;
+                   // draw = new byte[w*h];
                 }
                 // todo vider draw[] a la transition
-                kinit = 6 + (48./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
+                kinit = 8 + (32./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
             }
          //   kinit = 4+(16./256.)*(double)(data[(int)y*w+(int)x]&0xFF);
 
             double bestScore = 5000;
-            for (int j=0; j<100; j++) {
+            for (int j=0; j<30; j++) {
                 a = ThreadLocalRandom.current().nextDouble(0,6.285);
-                k = kinit; //Math.max(16, kinit + ThreadLocalRandom.current().nextGaussian()*kinit/2);
+                k = kinit; //Math.max(6, kinit + ThreadLocalRandom.current().nextGaussian()*kinit/2);
 
                // k0 = Math.max(8,(int)(kinit/5));
                // k = k0+(int)(k/k0)*k0;
@@ -232,15 +234,18 @@ public class ImageDemo {
                 dy = k*Math.sin(a);
 
                 if (x+dx < 0 || x+dx >=w) dx = -dx; 
-                if (y+dy < 0 || y+dy >=w) dy = -dx;
+                if (y+dy < 0 || y+dy >=h) dy = -dy;
 
             //    a = Math.atan2(-dy, dx);
                 
                 x1 = Math.min(Math.max(0,x+dx),w-1);
                 y1 = Math.min(Math.max(0,y+dy),h-1);
                 
-                double score = ((draw[(int)(x1/sz)+(int)(y1/sz)*(int)(w/sz)] == 1) ? 5000.:0) + (double)(data[(int)(y1)*w+(int)(x1)]&0xFF);
                 
+                double score = ((draw[(int)(x1/sz)+(int)(y1/sz)*(int)(w/sz)] == 1) ? 5000.:1) + (double)(data[(int)(y1)*w+(int)(x1)]&0xFF);
+                score = score/3+ThreadLocalRandom.current().nextDouble(0, score*2/3); // pour permettre a tous les choix d e pouvoir gagner
+                // mais en privilegiant un peu les meilleurs
+             
                 // On privilegie les faible changement d'angles
              //   score -= .1*getAngleDiffRad(a, amem);
                 
