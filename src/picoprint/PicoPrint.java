@@ -23,7 +23,9 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -38,6 +40,17 @@ import javax.swing.JFrame;
  * @author durands
  */
 public class PicoPrint {
+    
+    final static double // all in mm
+            R1 = 26.42,
+            R2 = 26.42,
+            X1 = -547/2,
+            X2 = 547/2,
+            Y1 = 0,
+            Y2 = 0,
+            refLength1 = 600,  // Longeur du fil quand le curseur est au point de reference
+            refLength2 = 600,  // Longeur du fil quand le curseur est au point de reference
+            GCODE_SCALE = .10;  // on part des mm mais la le reglage de grlb est en cm
     
     public static class Pos {
         double x;
@@ -76,7 +89,17 @@ public class PicoPrint {
         }
         return mv;
     }
-
+    
+    public static List<Pos> convertPosToMove(double cx1, double cy1, double r1, double cx2, double cy2, double r2, List<Pos> lst, double sign) {
+        List<Double> mv1 = convertPosToMove(cx1, cy1, r1, lst, sign);
+        List<Double> mv2 = convertPosToMove(cx2, cy2, r2, lst, sign);
+        List<Pos> mv = new ArrayList(lst.size());
+        
+        for (int i=0; i<lst.size(); i++) {
+            mv.add(new Pos(mv1.get(i), mv2.get(i), lst.get(i).isDrawing));
+        }
+        return mv;
+    }
 
     public static double mix(final double v1, final double v2, final double k) {
         return v1 + k*(v2 - v1);
@@ -121,18 +144,19 @@ public class PicoPrint {
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args) {
-        double r1 = 40;
-        double cx1 = 50, cy1 = 50;
-        double r2 = 40;
-        double cx2 = 650, cy2 = 50;
-        double x0 = 200, y0 = 400;
+    public static void main(String[] args) throws IOException {
+         
+        double r1 = R1;
+        double cx1 = X1, cy1 = Y1;
+        double r2 = R2;
+        double cx2 = X2, cy2 = Y2;
+        double x0 = -150, y0 = 400;
         
         File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\PicoPrint\\res\\drawingRaw.svg");
         // TODO code application logic here
         BezierPath parser = new BezierPath();
         try  {
-              BufferedReader r = Files.newBufferedReader(svgFile.toPath(), Charset.defaultCharset());
+            BufferedReader r = Files.newBufferedReader(svgFile.toPath(), Charset.defaultCharset());
             StringBuilder sb = new StringBuilder();
             r.lines().forEach(line -> sb.append(line));
             parser.parsePathString(sb.toString());
@@ -142,10 +166,17 @@ public class PicoPrint {
         }
         
         Path2D path = new Path2D.Double(parser.getPath2D(), AffineTransform.getScaleInstance(2,2));
+        path.transform(AffineTransform.getScaleInstance(.5, .5));
         path.transform(AffineTransform.getTranslateInstance(x0, y0));
-        Rectangle rec = path.getBounds();
         
         List<Pos> lstPositions = extractPositions(path);
+        List<Pos> lstMove = convertPosToMove(cx1, cy1, r1, cx2, cy2, r2, lstPositions, 1);
+        
+        String gcode = toGCode(lstMove);
+        File file = new File("C:\\Users\\durands\\Desktop\\FabLab\\testdrawer.gcode");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            writer.write(gcode);
+        }
         
         
         JFrame frame = new JFrame();
@@ -158,6 +189,8 @@ public class PicoPrint {
             @Override
             public void paint(Graphics graphics) {
                 Graphics2D g2 = (Graphics2D) graphics;
+        
+                g2.translate(400,60);
                 g2.setStroke(new BasicStroke(1));
                 g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
                 g2.setRenderingHint(KEY_STROKE_CONTROL, VALUE_STROKE_PURE);
@@ -222,7 +255,6 @@ public class PicoPrint {
         
         frame.setContentPane(panel);
 
-
         frame.setVisible(true);
         Pos pos, lastPos = lstPositions.get(0);
         
@@ -243,6 +275,29 @@ public class PicoPrint {
             lastPos = pos;
         }
         
+    }
+    
+    
+    public static String toGCode(List<Pos> lstPos) {
+        StringBuilder sb = new StringBuilder();
+        
+        sb.append("G21\r\n");   // Coordonnees en mm
+       // sb.append("M3 S0\r\n"); 
+        sb.append("G0 F100\r\n"); // Vitesse de deplacement
+        sb.append("G1 F100\r\n"); // Vitesse de tracé
+        sb.append("G90\r\n"); // en coordonnees absolues
+        
+        Pos pos;
+        for (int i=0; i<lstPos.size(); i++) {
+            pos = lstPos.get(i);
+            if (pos.isDrawing) {
+                sb.append("G1");
+            } else {
+                sb.append("G0");    
+            }
+            sb.append(" X").append(GCODE_SCALE*(pos.y-refLength1)).append(" Y").append(GCODE_SCALE*(pos.x-refLength2)).append("\r\n");
+        }
+        return sb.toString();
     }
     
 }

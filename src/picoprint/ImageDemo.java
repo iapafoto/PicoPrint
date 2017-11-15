@@ -49,7 +49,7 @@ public class ImageDemo {
             g2.setStroke(new BasicStroke(1.f));
             g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
             g2.setRenderingHint(KEY_STROKE_CONTROL, VALUE_STROKE_PURE);
-            g2.setColor(new Color(0,0,0,32));
+            g2.setColor(new Color(0,0,0,24));
           //  g2.draw(pathRemix);
             for (int t=0; t<time; t++) {
                 g2.draw(pathRemix.get(t));
@@ -62,7 +62,7 @@ public class ImageDemo {
     };
 
     public static void main(String[] args) throws Exception {
-        String filename = "C:\\Users\\durands\\Desktop\\mila2.png";
+        String filename = "C:\\Users\\durands\\Desktop\\illusion.png";
   
         JFrame editorFrame = new JFrame("Image Demo");
         editorFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -192,7 +192,7 @@ public class ImageDemo {
         double a, xbest=x, ybest=y, xmem = x, ymem = y, kinit, k0, x1, y1, amem=0, abest = 0;
         
         
-        double sz = 1;
+        double sz = 2;
         
         double[] pts = new double[(int)(w*h*1.)];
         boolean transition = false;
@@ -207,10 +207,10 @@ public class ImageDemo {
           //  if (i<nb/16) {
           //      kinit = 32 + (128./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
           //  } else 
-            if (i<nb/4) {
-                //draw = new byte[w*h];
-                kinit = 16 + (92./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
-            } else 
+      //      if (i<nb/8) {
+               // draw = new byte[w*h];
+      //          kinit = 16 + (92./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
+      //      } else 
 {
                 if (!transition) {
                     transition = true;
@@ -218,7 +218,7 @@ public class ImageDemo {
                    // draw = new byte[w*h];
                 }
                 // todo vider draw[] a la transition
-                kinit = 8 + (32./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
+                kinit = 6 + (24./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
             }
          //   kinit = 4+(16./256.)*(double)(data[(int)y*w+(int)x]&0xFF);
 
