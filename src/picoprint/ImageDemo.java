@@ -62,7 +62,7 @@ public class ImageDemo {
     };
 
     public static void main(String[] args) throws Exception {
-        String filename = "C:\\Users\\durands\\Desktop\\illusion.png";
+        String filename = "C:\\Users\\durands\\Desktop\\drawer\\visage.png";
   
         JFrame editorFrame = new JFrame("Image Demo");
         editorFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -192,7 +192,7 @@ public class ImageDemo {
         double a, xbest=x, ybest=y, xmem = x, ymem = y, kinit, k0, x1, y1, amem=0, abest = 0;
         
         
-        double sz = 2;
+        double sz = 1;
         
         double[] pts = new double[(int)(w*h*1.)];
         boolean transition = false;
@@ -207,15 +207,15 @@ public class ImageDemo {
           //  if (i<nb/16) {
           //      kinit = 32 + (128./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
           //  } else 
-      //      if (i<nb/8) {
+            if (i<nb/4) {
                // draw = new byte[w*h];
-      //          kinit = 16 + (92./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
-      //      } else 
+                kinit = 16 + (92./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
+            } else 
 {
                 if (!transition) {
                     transition = true;
              //       sz = 1;
-                   // draw = new byte[w*h];
+                    draw = new byte[w*h];
                 }
                 // todo vider draw[] a la transition
                 kinit = 6 + (24./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));

@@ -60,7 +60,6 @@ public class BezierListProducer implements PathHandler {
     @Override
     public void closePath()  {
         path.closePath();
-        //command(SVGPathSeg.PATHSEG_CLOSEPATH);
     }
 
     @Override

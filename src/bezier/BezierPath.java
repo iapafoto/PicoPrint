@@ -76,7 +76,7 @@ public class BezierPath {
                     pathBuilder.linetoVerticalAbs(nextFloat(tokens));
                     break;
                 case 'v':
-                    pathBuilder.linetoVerticalAbs(nextFloat(tokens));
+                    pathBuilder.linetoVerticalRel(nextFloat(tokens));
                     break;
                 case 'A':
                     pathBuilder.arcAbs(nextFloat(tokens), nextFloat(tokens), nextFloat(tokens), nextFloat(tokens), nextFloat(tokens), nextFloat(tokens), nextFloat(tokens));

@@ -40,23 +40,27 @@ import javax.swing.JFrame;
  * @author durands
  */
 public class PicoPrint {
-    
+    final static double pi4 = Math.PI/4;
+
     final static double // all in mm
-            R1 = 26.42,
-            R2 = 26.42,
-            X1 = -547/2,
-            X2 = 547/2,
-            Y1 = 0,
-            Y2 = 0,
-            refLength1 = 600,  // Longeur du fil quand le curseur est au point de reference
-            refLength2 = 600,  // Longeur du fil quand le curseur est au point de reference
-            GCODE_SCALE = .10;  // on part des mm mais la le reglage de grlb est en cm
+            R1 = 20,//26.42,
+            R2 = 20,//26.42,
+            CX1 = -547/2,
+            CX2 = 547/2,
+            CY1 = 0,
+            CY2 = 0,
+            POS_X0 = 0,
+            POS_Y0 = 500,
+            GCODE_SCALE = .1;  //  si on part des mm mais la le reglage de grlb est en cm
+    
+    static double
+            refLength1 = convertPosToMove(POS_X0, POS_Y0, CX1, CY1, R1, 1),  // Longeur du fil quand le curseur est au point de reference
+            refLength2 = convertPosToMove(POS_X0, POS_Y0, CX2, CY2, R2, 1);  // Longeur du fil quand le curseur est au point de reference
     
     public static class Pos {
         double x;
         double y;
         boolean isDrawing;
-        
         public Pos(double x, double y, boolean isDrawing) {
             this.x = x;
             this.y = y;
@@ -72,22 +76,27 @@ public class PicoPrint {
     // double sign = 1; // indique si on passe par au dessus (1) ou au dessous (!=1)
     public static List<Double> convertPosToMove(double cx, double cy, double r, List<Pos> lst, double sign) {
         List<Double> mv = new ArrayList(lst.size());
-        double r2 = r*r;
        
-        double d, dt, e, length;
-        double pi4 = Math.PI/4;
         for (Pos p : lst) {
-            // Distance a l'axe
-            d = Math.sqrt((cx-p.x)*(cx-p.x) + (cy-p.y)*(cy-p.y));
-            // Distance a la partie tangente
-            dt = Math.sqrt(d*d - r2);
-            // Distance de corde enroulee (cas au dessus)
-            e = r*(Math.asin(r/d) + Math.asin(Math.abs(cy-p.y)/d));
-            // Distance totale
-            length = dt + (sign == 1 ? e : (pi4-e));
-            mv.add(length);
+            mv.add(convertPosToMove(p.x, p.y, cx, cy, r, sign));
         }
         return mv;
+    }
+
+    private static double convertPosToMove(double x, double y, double cx, double cy, double r, double sign) {
+        double d;
+        double dt;
+        double e;
+        double length;
+        // Distance a l'axe
+        d = Math.sqrt((cx-x)*(cx-x) + (cy-y)*(cy-y));
+        // Distance a la partie tangente
+        dt = Math.sqrt(d*d - r*r);
+        // Distance de corde enroulee (cas au dessus)
+        e = r*(Math.asin(r/d) + Math.asin(Math.abs(cy-y)/d));
+        // Distance totale
+        length = dt + (sign == 1 ? e : (pi4-e));
+        return length;
     }
     
     public static List<Pos> convertPosToMove(double cx1, double cy1, double r1, double cx2, double cy2, double r2, List<Pos> lst, double sign) {
@@ -147,13 +156,14 @@ public class PicoPrint {
     public static void main(String[] args) throws IOException {
          
         double r1 = R1;
-        double cx1 = X1, cy1 = Y1;
+        double cx1 = CX1, cy1 = CY1;
         double r2 = R2;
-        double cx2 = X2, cy2 = Y2;
-        double x0 = -150, y0 = 400;
+        double cx2 = CX2, cy2 = CY2;
+        double x0 = -200, y0 = 400;
         
-        File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\PicoPrint\\res\\drawingRaw.svg");
-        // TODO code application logic here
+//        File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\PicoPrint\\res\\drawingRaw.svg");
+        File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\renard.txt");
+          // TODO code application logic here
         BezierPath parser = new BezierPath();
         try  {
             BufferedReader r = Files.newBufferedReader(svgFile.toPath(), Charset.defaultCharset());
@@ -166,14 +176,22 @@ public class PicoPrint {
         }
         
         Path2D path = new Path2D.Double(parser.getPath2D(), AffineTransform.getScaleInstance(2,2));
-        path.transform(AffineTransform.getScaleInstance(.5, .5));
-        path.transform(AffineTransform.getTranslateInstance(x0, y0));
-        
+       path.transform(AffineTransform.getScaleInstance(.5, .5));
+       path.transform(AffineTransform.getTranslateInstance(x0, y0/2));
+        Rectangle rec =path.getBounds();
+       // path = moveTo()
+       double r = Math.max(rec.width, rec.height);
+        Path2D path2 = new Path2D.Double();
+        path2.append(new Ellipse2D.Double(rec.x, rec.y, r,r), false);
+        path2.append(new Ellipse2D.Double(rec.x, rec.y-r, r,r), false);
+        path2.append(new Ellipse2D.Double(rec.x+r, rec.y, r,r), false);
+        path2.append(new Ellipse2D.Double(rec.x+r, rec.y-r, r,r), false);
+        rec = path2.getBounds();
         List<Pos> lstPositions = extractPositions(path);
         List<Pos> lstMove = convertPosToMove(cx1, cy1, r1, cx2, cy2, r2, lstPositions, 1);
         
         String gcode = toGCode(lstMove);
-        File file = new File("C:\\Users\\durands\\Desktop\\FabLab\\testdrawer.gcode");
+        File file = new File("C:\\Users\\durands\\Desktop\\FabLab\\renard.gcode");
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
             writer.write(gcode);
         }
@@ -200,7 +218,7 @@ public class PicoPrint {
                 g2.drawOval((int)(cx1-r1),(int)(cy1-r2),(int)(2*r1),(int)(2*r1));
                 g2.drawOval((int)(cx2-r2),(int)(cy2-r2),(int)(2*r2),(int)(2*r2));
                 
-                double dtot = 650, d1, dt1, d2, dt2;
+                double dtot = 850, d1, dt1, d2, dt2;
                 
                 // Distance a l'axe
                 d1 = Math.sqrt((cx1-currentPos.x)*(cx1-currentPos.x) + (cy1-currentPos.y)*(cy1-currentPos.y));
@@ -211,7 +229,6 @@ public class PicoPrint {
                 double intx1 = cx1 + r1*Math.sin(angle1);
                 double inty1 = cy1 + r1*Math.cos(angle1);
                 double length1 = a1*r1 + dt1;
-                
                 
                 d2 = Math.sqrt((cx2-currentPos.x)*(cx2-currentPos.x) + (cy2-currentPos.y)*(cy2-currentPos.y));
                 dt2 = Math.sqrt(d2*d2 - r2*r2);
@@ -274,17 +291,15 @@ public class PicoPrint {
             }   
             lastPos = pos;
         }
-        
     }
-    
     
     public static String toGCode(List<Pos> lstPos) {
         StringBuilder sb = new StringBuilder();
         
         sb.append("G21\r\n");   // Coordonnees en mm
        // sb.append("M3 S0\r\n"); 
-        sb.append("G0 F100\r\n"); // Vitesse de deplacement
-        sb.append("G1 F100\r\n"); // Vitesse de tracé
+        sb.append("G0 F500\r\n"); // Vitesse de deplacement
+        sb.append("G1 F500\r\n"); // Vitesse de tracé
         sb.append("G90\r\n"); // en coordonnees absolues
         
         Pos pos;
@@ -295,7 +310,7 @@ public class PicoPrint {
             } else {
                 sb.append("G0");    
             }
-            sb.append(" X").append(GCODE_SCALE*(pos.y-refLength1)).append(" Y").append(GCODE_SCALE*(pos.x-refLength2)).append("\r\n");
+            sb.append(" X").append(GCODE_SCALE*(pos.x-refLength1)).append(" Y").append(GCODE_SCALE*(pos.y-refLength2)).append("\r\n");
         }
         return sb.toString();
     }
