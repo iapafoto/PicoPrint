@@ -14,7 +14,6 @@ import static java.awt.RenderingHints.KEY_ANTIALIASING;
 import static java.awt.RenderingHints.KEY_STROKE_CONTROL;
 import static java.awt.RenderingHints.VALUE_ANTIALIAS_ON;
 import static java.awt.RenderingHints.VALUE_STROKE_PURE;
-import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.image.*;
 import java.io.*;
@@ -23,8 +22,6 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.imageio.*;
 import javax.swing.*;
-import static picoprint.PicoPrint.currentPos;
-import static picoprint.PicoPrint.mix;
 
 /**
  * A Java class to demonstrate how to load an image from disk with the ImageIO
@@ -62,11 +59,11 @@ public class ImageDemo {
     };
 
     public static void main(String[] args) throws Exception {
-        String filename = "C:\\Users\\durands\\Desktop\\drawer\\visage.png";
   
         JFrame editorFrame = new JFrame("Image Demo");
         editorFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
+        String filename = "C:\\Users\\durands\\Desktop\\cerf.png";
         BufferedImage image = null;
         try {
             image = ImageIO.read(new File(filename));
@@ -74,10 +71,9 @@ public class ImageDemo {
             e.printStackTrace();
             System.exit(1);
         }
-        
-        editorFrame.setSize(image.getWidth(), image.getHeight());
-
         List<Path2D> pathRemix = toCurvePath(makeBrownien(image));
+
+        editorFrame.setSize(image.getWidth(), image.getHeight());
 
         final Panel panel = new Panel(pathRemix);
 
@@ -194,7 +190,7 @@ public class ImageDemo {
         
         double sz = 1;
         
-        double[] pts = new double[(int)(w*h*1.)];
+        double[] pts = new double[(int)(w*h*.25)];
         boolean transition = false;
         int nb = pts.length/2;
         for (int i=0; i<nb; i++) {
@@ -209,21 +205,21 @@ public class ImageDemo {
           //  } else 
             if (i<nb/4) {
                // draw = new byte[w*h];
-                kinit = 16 + (92./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
-            } else 
+                kinit = 8 + (64./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
+           } else 
 {
                 if (!transition) {
                     transition = true;
              //       sz = 1;
-                    draw = new byte[w*h];
+            //        draw = new byte[w*h];
                 }
                 // todo vider draw[] a la transition
-                kinit = 6 + (24./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
+                kinit = 4 + (16./256.)*(double)(data[(int)y*w+(int)x]&0xFF); //smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
             }
          //   kinit = 4+(16./256.)*(double)(data[(int)y*w+(int)x]&0xFF);
 
             double bestScore = 5000;
-            for (int j=0; j<30; j++) {
+            for (int j=0; j<60; j++) {
                 a = ThreadLocalRandom.current().nextDouble(0,6.285);
                 k = kinit; //Math.max(6, kinit + ThreadLocalRandom.current().nextGaussian()*kinit/2);
 

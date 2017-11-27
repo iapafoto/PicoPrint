@@ -22,6 +22,7 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -33,7 +34,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.imageio.ImageIO;
 import javax.swing.JFrame;
+import static picoprint.ImageDemo.makeBrownien;
+import static picoprint.ImageDemo.toCurvePath;
+import static picoprint.ImageToDrawEvaluateLine.toLinePath;
 
 /**
  *
@@ -45,8 +50,8 @@ public class PicoPrint {
     final static double // all in mm
             R1 = 20,//26.42,
             R2 = 20,//26.42,
-            CX1 = -547/2,
-            CX2 = 547/2,
+            CX1 = -548/2,
+            CX2 = 548/2,
             CY1 = 0,
             CY2 = 0,
             POS_X0 = 0,
@@ -129,22 +134,37 @@ public class PicoPrint {
             }
             
             final double[] crds = new double[2];
-            double x0=0, y0=0;
+            double x0=0, y0=0, xlast=0, ylast=0;
           
+            double distMove = 0, distDraw = 0;
+            
             for (; !pit.isDone(); pit.next()) {
                 switch (pit.currentSegment(crds)) {
                     case PathIterator.SEG_MOVETO:
-                        lst.add(new Pos(x0 = crds[0], y0 = crds[1], false));
+                        if (xlast != crds[0] || ylast != crds[1]) {
+                            distMove += Math.sqrt((xlast-crds[0])*(xlast-crds[0])+(ylast-crds[1])*(ylast-crds[1]));
+                            lst.add(new Pos(xlast = x0 = crds[0], ylast = y0 = crds[1], false));
+                        }
                         break;
                     case PathIterator.SEG_LINETO:
-                        lst.add(new Pos(crds[0], crds[1], true));
+                        if (xlast != crds[0] || ylast != crds[1]) {
+                            distDraw += Math.sqrt((xlast-crds[0])*(xlast-crds[0])+(ylast-crds[1])*(ylast-crds[1]));
+                            lst.add(new Pos(xlast = crds[0], ylast = crds[1], true));
+                        }
                         break;
                     case PathIterator.SEG_CLOSE:
-                        lst.add(new Pos(x0, y0, true));
+                        if (xlast != x0 || ylast != y0) {
+                            distDraw += Math.sqrt((xlast-x0)*(xlast-x0)+(ylast-y0)*(ylast-y0));
+                            lst.add(new Pos(x0, y0, true));
+                        }
                         break;
                     default:
                 }
             }
+            
+            System.out.println("Distance Deplacement : " + (distMove/1000) + "m"); 
+            System.out.println("Distance Dessin      : " + (distDraw/1000) + "m"); 
+            System.out.println("Distance Totale      : " + ((distDraw+distMove)/1000) + "m"); 
             return lst;
         }
     
@@ -159,10 +179,10 @@ public class PicoPrint {
         double cx1 = CX1, cy1 = CY1;
         double r2 = R2;
         double cx2 = CX2, cy2 = CY2;
-        double x0 = -200, y0 = 400;
+        double x0 = -200, y0 = 700;
         
-//        File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\PicoPrint\\res\\drawingRaw.svg");
-        File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\renard.txt");
+        File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\PicoPrint\\res\\drawingRaw.svg");
+    //    File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\renard.txt");
           // TODO code application logic here
         BezierPath parser = new BezierPath();
         try  {
@@ -174,9 +194,9 @@ public class PicoPrint {
         } catch (IOException ex) {
             Logger.getLogger(PicoPrint.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
+        /*
         Path2D path = new Path2D.Double(parser.getPath2D(), AffineTransform.getScaleInstance(2,2));
-       path.transform(AffineTransform.getScaleInstance(.5, .5));
+       path.transform(AffineTransform.getScaleInstance(.25, .25));
        path.transform(AffineTransform.getTranslateInstance(x0, y0/2));
         Rectangle rec =path.getBounds();
        // path = moveTo()
@@ -187,11 +207,28 @@ public class PicoPrint {
         path2.append(new Ellipse2D.Double(rec.x+r, rec.y, r,r), false);
         path2.append(new Ellipse2D.Double(rec.x+r, rec.y-r, r,r), false);
         rec = path2.getBounds();
+        */
+        String filename = "C:\\Users\\durands\\Desktop\\cerf.png";
+        BufferedImage image = null;
+        try {
+            image = ImageIO.read(new File(filename));
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+        List<Path2D> pathRemix = toCurvePath(makeBrownien(image));
+      //  List<Path2D> pathRemix = toLinePath(ImageToDrawEvaluateLine.findDrawPath(image));
+        Path2D path = new Path2D.Double();
+        for (Path2D pa : pathRemix) {
+            path.append(pa, true);
+        }
+        path.transform(AffineTransform.getScaleInstance(.4, .4));
+        path.transform(AffineTransform.getTranslateInstance(-200, 100));
         List<Pos> lstPositions = extractPositions(path);
         List<Pos> lstMove = convertPosToMove(cx1, cy1, r1, cx2, cy2, r2, lstPositions, 1);
         
         String gcode = toGCode(lstMove);
-        File file = new File("C:\\Users\\durands\\Desktop\\FabLab\\renard.gcode");
+        File file = new File("C:\\Users\\durands\\Desktop\\FabLab\\cerf.gcode");
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
             writer.write(gcode);
         }
@@ -212,7 +249,8 @@ public class PicoPrint {
                 g2.setStroke(new BasicStroke(1));
                 g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
                 g2.setRenderingHint(KEY_STROKE_CONTROL, VALUE_STROKE_PURE);
-
+                
+                g2.setColor(new Color(0,0,0, (int)ImageToDrawEvaluateLine.PEN_BLACKNESS));
                 g2.draw(path);
                 
                 g2.drawOval((int)(cx1-r1),(int)(cy1-r2),(int)(2*r1),(int)(2*r1));
@@ -298,8 +336,8 @@ public class PicoPrint {
         
         sb.append("G21\r\n");   // Coordonnees en mm
        // sb.append("M3 S0\r\n"); 
-        sb.append("G0 F500\r\n"); // Vitesse de deplacement
-        sb.append("G1 F500\r\n"); // Vitesse de tracé
+        sb.append("G0 F4000\r\n"); // Vitesse de deplacement
+        sb.append("G1 F4000\r\n"); // Vitesse de tracé
         sb.append("G90\r\n"); // en coordonnees absolues
         
         Pos pos;
