@@ -32,7 +32,7 @@ import javax.swing.*;
  * @author alvin alexander, alvinalexander.com
  */
 public class ImageToDrawEvaluateLine {
-    public static final double PEN_BLACKNESS = 85;
+    public static final double PEN_BLACKNESS = 64;
     
     static class Panel extends Container {
         List<Path2D> pathRemix = null;
@@ -45,21 +45,22 @@ public class ImageToDrawEvaluateLine {
         @Override
         public void paint(Graphics graphics) {
             Graphics2D g2 = (Graphics2D) graphics;
+           
             g2.setStroke(new BasicStroke(1.f));
             g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
             g2.setRenderingHint(KEY_STROKE_CONTROL, VALUE_STROKE_PURE);
             
-            if (lineDrawn != null) {
-                g2.drawImage(lineDrawn, 0,0, this);
-            }
-           
+        //    if (lineDrawn != null) {
+        //        g2.drawImage(lineDrawn, 0,0, this);
+        //    }
+//           
             g2.setColor(new Color(0,0,0,(int)PEN_BLACKNESS));
-          //  g2.draw(pathRemix);
-       /*     
-            for (int t=0; t<time; t++) {
+       //   g2.draw(pathRemix);
+            
+            for (int t=0; t<pathRemix.size(); t++) {
                 g2.draw(pathRemix.get(t));
             }
-*/
+
         }
 
         private void setTime(int d) {
@@ -72,8 +73,8 @@ public class ImageToDrawEvaluateLine {
         JFrame editorFrame = new JFrame("Image Demo");
         editorFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-      //  String filename = "C:\\Users\\durands\\Desktop\\cerf.png"; //visage.png"; //cerf.png";
-        String filename = "C:\\Users\\durands\\Desktop\\drawer\\quest.png"; //visage.png"; //cerf.png";
+       // String filename = "C:\\Users\\durands\\Desktop\\cerf.png"; //visage.png"; //cerf.png";
+       String filename = "C:\\Users\\durands\\Desktop\\drawer\\1489679025811.jpg"; //noel.gif";//quest.png"; //visage.png"; //cerf.png";
         BufferedImage image = null;
         try {
             image = ImageIO.read(new File(filename));
@@ -81,7 +82,7 @@ public class ImageToDrawEvaluateLine {
             e.printStackTrace();
             System.exit(1);
         }
-        List<Path2D> pathRemix = /*toLinePath*/toCurvePath(findDrawPath(image));
+        List<Path2D> pathRemix = toCurvePath/*toLinePath*/(findDrawPath(image));
 
         editorFrame.setSize(image.getWidth(), image.getHeight());
 
@@ -146,6 +147,7 @@ public class ImageToDrawEvaluateLine {
         double diff = 0, diffloc = 0, difflocmax = 0;
         int w = buffSrc.length, h = buffSrc[0].length;
         int x,y,xmax=cy, ymax=cx,rr = r*r;
+        int cpt=0;
         for (int dx=-r; dx<r; dx++) {
             for (int dy=-r; dy<r; dy++) {
                 if (dx*dx + dy*dy < rr) {
@@ -154,7 +156,8 @@ public class ImageToDrawEvaluateLine {
                     if (x>=0 && y>=0 && x<w && y<h) {
                         diffloc = buffSrc[x][y] - buffDrawing[x][y];
                         diff += diffloc;
-                        if (Math.abs(diffloc) > difflocmax) {
+                        cpt++;
+                        if (diffloc > difflocmax) {
                             xmax = x;
                             ymax = y;
                         }
@@ -162,7 +165,7 @@ public class ImageToDrawEvaluateLine {
                 }
             }
         }
-        return new int[] {xmax, ymax, (int)diff};
+        return new int[] {xmax, ymax, (int)(10.*diff/cpt)};
     }
     
     private static double evaluateLine(double[][] buffSrc, double[][] buffDrawing, int x1, int y1, int x2, int y2, double blackness) {
@@ -176,9 +179,10 @@ public class ImageToDrawEvaluateLine {
         int x = x1, y = y1;
         double diff = 0;
 
+        // De combien ca nous rapproche de la realitee
         if (dx >= dy) {
             while (true) {
-                if (x != x1) diff += /*Math.abs*/((buffDrawing[x][y] + blackness) - buffSrc[x][y]);
+                if (x != x1) diff += /*Math.abs*/Math.abs((buffDrawing[x][y] + blackness) - buffSrc[x][y]) - Math.abs((buffDrawing[x][y] - buffSrc[x][y]));
                 if (x == x2) break;
                 x += ix;
                 d += dy2;
@@ -189,7 +193,7 @@ public class ImageToDrawEvaluateLine {
             }
         } else {
             while (true) {
-                if (y != y1) diff += /*Math.abs*/((buffDrawing[x][y] + blackness) - buffSrc[x][y]);
+                if (y != y1) diff += /*Math.abs*/Math.abs((buffDrawing[x][y] + blackness) - buffSrc[x][y]) - Math.abs((buffDrawing[x][y] - buffSrc[x][y]));
                 if (y == y2) break;
                 y += iy;
                 d += dx2;
@@ -256,13 +260,15 @@ public class ImageToDrawEvaluateLine {
         path.moveTo(x, y);
         for (int i=2; i<pts.length-4; i+=2) {
             path.lineTo(pts[i], pts[i+1]);
-            if (i%10==0) {
-                paths.add(path);
-                path = new Path2D.Double();
-                path.moveTo(pts[i], pts[i+1]);
-            }
+           // if (i%10==0) {
+//                paths.add(path);
+//                path = new Path2D.Double();
+             //   path.lineTo(pts[i], pts[i+1]);
+        //    }
         //    x = pts[i]; y = pts[i+1];
+            
         }
+        paths.add(path);
 
         return paths;
     }
@@ -315,17 +321,17 @@ public class ImageToDrawEvaluateLine {
   //      path.moveTo(x,y);
         double a, dbest =1, xbest=x, ybest=y, xmem = x, ymem = y, kinit, k0, x1, y1, amem=0, abest = 0;
                 
-        double[] pts = new double[(int)(w*h*1)];
+        double[] pts = new double[(int)(w*h*1.)];
         int nb = pts.length/2;
         int ptid = 0;
         
-        int[] zoneToDraw;// = findZoneToDraw(srcImg, drawnImg, w/20, w/10);
-     /*   System.out.println("" + zoneToDraw[2]);
+        int[] zoneToDraw = findZoneToDraw(srcImg, drawnImg, w/20, w/10);
+     //   System.out.println("" + zoneToDraw[2]);
         if (zoneToDraw[2] < 0) {
             xmem = x = zoneToDraw[0];
             ymem = y = zoneToDraw[1];
         }
-        */
+        
        int zoneToDrawWorst = 0;
      
         double xzone = 0, yzone = 0;
@@ -364,18 +370,18 @@ public class ImageToDrawEvaluateLine {
             {
 
                 // todo vider draw[] a la transition
-                kinit = 3 + (36./256.)*(double)(data[(int)y*w+(int)x]&0xFF);//*/ 64*smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
+                kinit = 3 + (48./256.)*(double)(data[(int)y*w+(int)x]&0xFF);//*/ 64*smoothstep(32,192,(double)(data[(int)y*w+(int)x]&0xFF));
               //  kinit = Math.max(3,(.001*kinit + .999*vkinit));
               //  vkinit = kinit;
             }
             
          //   kinit = 4+(16./256.)*(double)(data[(int)y*w+(int)x]&0xFF);
             double bestScore = Double.MAX_VALUE;
-            
+            boolean superGood = false, allBad = true;
             // On recherche le meilleur angle pour dessiner la ligne
             for (int j=0; j<1000; j++) {
                 a = ThreadLocalRandom.current().nextDouble(0, 6.285);
-                k = kinit; //Math.max(3, .5*kinit + Math.abs(.5*ThreadLocalRandom.current().nextGaussian()*kinit));
+                k = /*kinit; */Math.max(3, .5*kinit + Math.abs(.5*ThreadLocalRandom.current().nextGaussian()*kinit));
 
                 dx = k*Math.cos(a);
                 dy = k*Math.sin(a);
@@ -386,10 +392,23 @@ public class ImageToDrawEvaluateLine {
                 x1 = Math.min(Math.max(0,x+dx),w-1);
                 y1 = Math.min(Math.max(0,y+dy),h-1);
                 
-              //  double len = Math.sqrt((x-x1)*(x-x1) + (y-y1)*(y-y1))-1;
-                double len = Math.max(Math.abs(x-x1),Math.abs(y-y1))-2;
-                double differenceToReality = evaluateLine(srcImg, drawnImg, (int)xmem,(int)ymem,(int)x1,(int)y1, PEN_BLACKNESS) / len;
+                double len = Math.max(Math.abs((int)x-(int)x1),Math.abs((int)y-(int)y1));
+                double maxScore = PEN_BLACKNESS*len;
+                double differenceToReality = evaluateLine(srcImg, drawnImg, (int)xmem,(int)ymem,(int)x1,(int)y1, PEN_BLACKNESS) ;
                 
+                if (differenceToReality >= maxScore) {
+                    superGood = true;
+                    allBad = false;
+                  //  kinit *= 1.1;
+                } else if (differenceToReality <= -maxScore+2*PEN_BLACKNESS) {
+                    int bad = 1;
+                } else {
+                    allBad = false;
+                    // normal case
+                }
+            //    differenceToReality = -(maxScore - differenceToReality)/len; 
+                differenceToReality /= len;
+                 
         //(draw[(int)(x1/sz)+(int)(y1/sz)*(int)(w/sz)] == 1) ? 5000.:1) + (double)(data[(int)(y1)*w+(int)(x1)]&0xFF);
             //    if (differenceToReality > 0) differenceToReality = differenceToReality/3+ThreadLocalRandom.current().nextDouble(0, differenceToReality*2/3); // pour permettre a tous les choix d e pouvoir gagner
                 // mais en privilegiant un peu les meilleurs
@@ -404,16 +423,18 @@ public class ImageToDrawEvaluateLine {
                     dbest = Math.max(dx, dy);
                     abest = a;
                 }
+                
+                // Pas besoin de tester les autres (sutotu si on est a taille constante
+                //if (superGood) break;
             }
+            
       
-       /*  
-            double diffMax = (dbest-1)*(255-PEN_BLACKNESS);
-            if (dbest > 10 && bestScore > diffMax) {
-                x = xzone;
-                y = yzone;
-                continue;
+            if (kinit>10 && allBad) {
+               // x = xzone;
+               // y = yzone;
+           //     continue;
             }
-         */
+         
        // On est trop eloigne de la realitee
          //       zoneToDraw = findZoneToDraw(srcImg, drawnImg, w/10, w/5);
                 
@@ -430,7 +451,13 @@ public class ImageToDrawEvaluateLine {
                 x = xbest;
                 y = ybest;
             }
-
+            
+            if (kinit>10 && allBad) {
+               // x = xzone;
+               // y = yzone;
+                continue;
+            }
+  
             // AU cas où ca deborde quand meme
             x = Math.min(Math.max(0,x),w-1);
             y = Math.min(Math.max(0,y),h-1);
@@ -453,7 +480,7 @@ public class ImageToDrawEvaluateLine {
         return Arrays.copyOf(pts, ptid*2);
     }
     
-    static BufferedImage lineDrawn = null;
+    public static BufferedImage lineDrawn = null;
     
     static BufferedImage arrayToBufferedImage(double[][] drawnImg) {
         int w = drawnImg.length, h = drawnImg[0].length;

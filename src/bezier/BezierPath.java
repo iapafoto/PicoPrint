@@ -11,27 +11,20 @@ public class BezierPath {
 
     static final Matcher matchPoint = Pattern.compile("\\s*(\\d+)[^\\d]+(\\d+)\\s*").matcher("");
 
-    BezierListProducer pathBuilder;
-
-    public Path2D getPath2D() {
-        return pathBuilder.path;
-    }
-    
     /**
      * Creates a new instance of Animate
      */
     public BezierPath() {
     }
-
-    public void parsePathString(String d) {
-
-        this.pathBuilder = new BezierListProducer();
-
-        parsePathList(d);
+    
+    public static Path2D parsePathString(String svg) {
+        BezierListProducer blp = parsePathList(svg);
+        return blp.path;
     }
 
-    protected void parsePathList(String list) {
-        
+    protected static BezierListProducer parsePathList(String list) {
+        BezierListProducer pathBuilder = new BezierListProducer();
+                
         // TODO ajouter les arcs
         final Matcher matchPathCmd = Pattern.compile("([MmLlHhVvAaQqTtCcSsZz])|([-+]?((\\d*\\.\\d+)|(\\d+))([eE][-+]?\\d+)?)").matcher(list);
 
@@ -123,6 +116,7 @@ public class BezierPath {
                     throw new RuntimeException("Invalid path element");
             }
         }
+        return pathBuilder;
     }
 
     static protected float nextFloat(LinkedList<String> l) {
@@ -136,7 +130,7 @@ public class BezierPath {
      * @param interp
      * @return 
      */
-    public Vector2 eval(float interp) {
+    public Vector2 eval(float interp, BezierListProducer pathBuilder) {
         Vector2 point = new Vector2();
 
         double curLength = pathBuilder.curveLength * interp;

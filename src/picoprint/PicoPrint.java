@@ -6,8 +6,10 @@
 package picoprint;
 
 import bezier.BezierPath;
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Container;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -20,6 +22,7 @@ import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
+import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.image.BufferedImage;
@@ -38,6 +41,8 @@ import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import static picoprint.ImageDemo.makeBrownien;
 import static picoprint.ImageDemo.toCurvePath;
+import static picoprint.ImageToDrawEvaluateLine.PEN_BLACKNESS;
+import static picoprint.ImageToDrawEvaluateLine.lineDrawn;
 import static picoprint.ImageToDrawEvaluateLine.toLinePath;
 
 /**
@@ -125,7 +130,7 @@ public class PicoPrint {
 
     
     public static List<Pos> extractPositions(final Shape shape) {
-            final PathIterator pit = shape.getPathIterator(null, 2);
+            final PathIterator pit = shape.getPathIterator(null, .1);
 
             List<Pos> lst = new ArrayList();
             
@@ -169,7 +174,8 @@ public class PicoPrint {
         }
     
     public static Pos currentPos;
-    
+    public static BufferedImage imgDrawing = null;
+            
     /**
      * @param args the command line arguments
      */
@@ -216,14 +222,20 @@ public class PicoPrint {
             e.printStackTrace();
             System.exit(1);
         }
-        List<Path2D> pathRemix = toCurvePath(makeBrownien(image));
-      //  List<Path2D> pathRemix = toLinePath(ImageToDrawEvaluateLine.findDrawPath(image));
+      //  List<Path2D> pathRemix = toLinePath(makeBrownien(image));
+        List<Path2D> pathRemix = toCurvePath(ImageToDrawEvaluateLine.findDrawPath(image));
         Path2D path = new Path2D.Double();
         for (Path2D pa : pathRemix) {
             path.append(pa, true);
         }
-        path.transform(AffineTransform.getScaleInstance(.4, .4));
-        path.transform(AffineTransform.getTranslateInstance(-200, 100));
+        
+        if (lineDrawn != null) {
+            imgDrawing = new BufferedImage(lineDrawn.getWidth(), lineDrawn.getWidth(), BufferedImage.TYPE_INT_ARGB);
+        }
+        
+        AffineTransform at = AffineTransform.getTranslateInstance(-200, 100);
+        at.scale(.4, .4);
+        path.transform(at);
         List<Pos> lstPositions = extractPositions(path);
         List<Pos> lstMove = convertPosToMove(cx1, cy1, r1, cx2, cy2, r2, lstPositions, 1);
         
@@ -236,7 +248,7 @@ public class PicoPrint {
         
         JFrame frame = new JFrame();
 
-        frame.setSize(800, 800);
+        frame.setSize(800, 1000);
         
         currentPos = lstPositions.get(0);
        
@@ -245,14 +257,26 @@ public class PicoPrint {
             public void paint(Graphics graphics) {
                 Graphics2D g2 = (Graphics2D) graphics;
         
+                g2.scale(1.5,1.5);
                 g2.translate(400,60);
                 g2.setStroke(new BasicStroke(1));
                 g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
                 g2.setRenderingHint(KEY_STROKE_CONTROL, VALUE_STROKE_PURE);
                 
                 g2.setColor(new Color(0,0,0, (int)ImageToDrawEvaluateLine.PEN_BLACKNESS));
-                g2.draw(path);
+          //      g2.draw(path);
                 
+                if (lineDrawn != null) {
+                    AffineTransform at = AffineTransform.getTranslateInstance(-200, 100);
+                    at.scale(.4, .4);
+                    g2.drawImage(imgDrawing, at, this);
+                    AlphaComposite ac = java.awt.AlphaComposite.getInstance(AlphaComposite.SRC_ATOP,0.25F);
+                    Composite acMem = g2.getComposite();
+                    g2.setComposite(ac);
+                    if (lineDrawn!=null) g2.drawImage(lineDrawn, at, this);
+                    g2.setComposite(acMem);
+                }
+
                 g2.drawOval((int)(cx1-r1),(int)(cy1-r2),(int)(2*r1),(int)(2*r1));
                 g2.drawOval((int)(cx2-r2),(int)(cy2-r2),(int)(2*r2),(int)(2*r2));
                 
@@ -326,7 +350,30 @@ public class PicoPrint {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-            }   
+                
+            }
+            
+            if (imgDrawing != null) {
+                Graphics2D g2 = (Graphics2D)imgDrawing.getGraphics();
+                g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
+                g2.setRenderingHint(KEY_STROKE_CONTROL, VALUE_STROKE_PURE);
+                if (t==1) {
+                    g2.setColor(Color.white);
+                    g2.fillRect(0,0, imgDrawing.getWidth(), imgDrawing.getHeight());
+                }
+                AffineTransform at2 = AffineTransform.getTranslateInstance(-200, 100);
+                at2.scale(.4, .4);
+                try {
+                    g2.transform(at2.createInverse());
+                } catch (NoninvertibleTransformException ex) {
+                    Logger.getLogger(PicoPrint.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                g2.setColor(new Color(0,0,0,(int)PEN_BLACKNESS));
+//                g2.setStroke(new BasicStroke(.3f));                
+                g2.draw(new Line2D.Double(lastPos.x,lastPos.y,pos.x,pos.y));
+                g2.dispose();
+            }
+            
             lastPos = pos;
         }
     }
