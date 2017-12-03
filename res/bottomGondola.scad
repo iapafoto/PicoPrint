@@ -29,10 +29,12 @@ module arc(radius, thick, angle){
 	}
 }
 
+
+
 module Center() {
     difference() {
         union() {
-            cylinder(r=16/2, h=20+2+5);
+            cylinder(r=17/2, h=20+2+5);
             translate([0,0,20+2+5]) cylinder(r1=20/2,r2=15/2, h=10);
             cylinder(r=21/2, h=5);
             cylinder(r=35/2, h=3);
@@ -51,12 +53,13 @@ module Center() {
         }
         union() {
             
-             translate([0,0,10]) linear_extrude(h=10) for(i=[0:60:360]) { rotate(i) translate([4.,0]) arc(1, 20, 25); } 
+             translate([0,0,10]) linear_extrude(h=10) 
+                for(i=[0:60:360]) { rotate(i) translate([4.,0]) arc(1, 20, 25); } 
          //   translate([0,0,5+10+10]) cube([30,1,35], center=true);
          //   rotate(60) translate([0,0,5+10+10]) cube([30,1,35], center=true);
          //   rotate(-60) translate([0,0,5+10+10]) cube([30,1,35], center=true);
             
-            translate([0,0,-1]) cylinder(r=14/2, h=52);
+            translate([0,0,-1]) cylinder(r=13.5/2, h=52);
         }
     }
     

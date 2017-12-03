@@ -25,6 +25,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -39,7 +40,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
-import static picoprint.ImageDemo.makeBrownien;
 import static picoprint.ImageDemo.toCurvePath;
 import static picoprint.ImageToDrawEvaluateLine.PEN_BLACKNESS;
 import static picoprint.ImageToDrawEvaluateLine.lineDrawn;
@@ -52,16 +52,26 @@ import static picoprint.ImageToDrawEvaluateLine.toLinePath;
 public class PicoPrint {
     final static double pi4 = Math.PI/4;
 
+    
+    /*final static*/
+    static double
+                TRANSLATE_X = -200,
+                TRANSLATE_Y = 80,
+                SCALE = .4;
+    
     final static double // all in mm
             R1 = 20,//26.42,
             R2 = 20,//26.42,
-            CX1 = -548/2,
-            CX2 = 548/2,
+            DISTANCE_AXES = 548, 
+            CX1 = -DISTANCE_AXES/2,
+            CX2 = DISTANCE_AXES/2,
             CY1 = 0,
             CY2 = 0,
             POS_X0 = 0,
             POS_Y0 = 500,
             GCODE_SCALE = .1;  //  si on part des mm mais la le reglage de grlb est en cm
+    
+    static Rectangle2D DRAWING_AREA = new Rectangle2D.Double(CX1*.8, DISTANCE_AXES*.1, DISTANCE_AXES*.8, DISTANCE_AXES);
     
     static double
             refLength1 = convertPosToMove(POS_X0, POS_Y0, CX1, CY1, R1, 1),  // Longeur du fil quand le curseur est au point de reference
@@ -176,6 +186,21 @@ public class PicoPrint {
     public static Pos currentPos;
     public static BufferedImage imgDrawing = null;
             
+    
+    public static Rectangle2D scaleRect(final Rectangle2D r, final double width, final double height) {
+        // Calcul de l'aspect ratio
+        final double k = height / width;
+        // Retour du plus grand rectangle contenu dans la zone et repondant à l'aspect ratio
+        if (k * r.getWidth() < r.getHeight()) {
+            double hNew = k * r.getWidth();
+            return new Rectangle2D.Double(r.getX(), r.getY() + ((r.getHeight() - hNew) / 2.), r.getWidth(), hNew);
+        } else {
+            double wNew = r.getHeight() / k;
+            return new Rectangle2D.Double(r.getX() + (r.getWidth() - wNew) / 2., r.getY(), wNew, r.getHeight());
+        }
+    }
+
+    
     /**
      * @param args the command line arguments
      */
@@ -214,7 +239,7 @@ public class PicoPrint {
         path2.append(new Ellipse2D.Double(rec.x+r, rec.y-r, r,r), false);
         rec = path2.getBounds();
         */
-        String filename = "C:\\Users\\durands\\Desktop\\cerf.png";
+        String filename = "C:\\Users\\durands\\Desktop\\highland-cow-bw-athena-mckinzie.jpg";
         BufferedImage image = null;
         try {
             image = ImageIO.read(new File(filename));
@@ -233,14 +258,22 @@ public class PicoPrint {
             imgDrawing = new BufferedImage(lineDrawn.getWidth(), lineDrawn.getWidth(), BufferedImage.TYPE_INT_ARGB);
         }
         
-        AffineTransform at = AffineTransform.getTranslateInstance(-200, 100);
-        at.scale(.4, .4);
+        Rectangle2D bounds = path.getBounds2D();
+        Rectangle2D recCenter = scaleRect(DRAWING_AREA, lineDrawn.getWidth(), lineDrawn.getHeight());
+        
+        SCALE = recCenter.getWidth()/lineDrawn.getWidth();
+        TRANSLATE_X = recCenter.getX();
+        TRANSLATE_Y = recCenter.getY();
+        
+        AffineTransform at = AffineTransform.getTranslateInstance(TRANSLATE_X,TRANSLATE_Y);    
+        at.scale(SCALE, SCALE);
+        
         path.transform(at);
         List<Pos> lstPositions = extractPositions(path);
         List<Pos> lstMove = convertPosToMove(cx1, cy1, r1, cx2, cy2, r2, lstPositions, 1);
         
         String gcode = toGCode(lstMove);
-        File file = new File("C:\\Users\\durands\\Desktop\\FabLab\\cerf.gcode");
+        File file = new File("C:\\Users\\durands\\Desktop\\superman.gcode");
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
             writer.write(gcode);
         }
@@ -257,18 +290,20 @@ public class PicoPrint {
             public void paint(Graphics graphics) {
                 Graphics2D g2 = (Graphics2D) graphics;
         
-                g2.scale(1.5,1.5);
+             //   g2.scale(1.5,1.5);
                 g2.translate(400,60);
                 g2.setStroke(new BasicStroke(1));
                 g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
                 g2.setRenderingHint(KEY_STROKE_CONTROL, VALUE_STROKE_PURE);
+          
                 
                 g2.setColor(new Color(0,0,0, (int)ImageToDrawEvaluateLine.PEN_BLACKNESS));
           //      g2.draw(path);
                 
+          
                 if (lineDrawn != null) {
-                    AffineTransform at = AffineTransform.getTranslateInstance(-200, 100);
-                    at.scale(.4, .4);
+                    AffineTransform at2 = AffineTransform.getTranslateInstance(TRANSLATE_X, TRANSLATE_Y);
+                    at2.scale(SCALE, SCALE);
                     g2.drawImage(imgDrawing, at, this);
                     AlphaComposite ac = java.awt.AlphaComposite.getInstance(AlphaComposite.SRC_ATOP,0.25F);
                     Composite acMem = g2.getComposite();
@@ -329,6 +364,10 @@ public class PicoPrint {
                 g2.draw(new Line2D.Double(cx2-10, cy2,cx2+10, cy2));
                 g2.draw(new Line2D.Double(cx2, cy2-10,cx2, cy2+10));
                 g2.setTransform(memAT);
+
+                g2.setColor(Color.red);
+                g2.draw(DRAWING_AREA);
+
             }
         };
         
@@ -352,7 +391,7 @@ public class PicoPrint {
                 }
                 
             }
-            
+
             if (imgDrawing != null) {
                 Graphics2D g2 = (Graphics2D)imgDrawing.getGraphics();
                 g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
@@ -361,8 +400,8 @@ public class PicoPrint {
                     g2.setColor(Color.white);
                     g2.fillRect(0,0, imgDrawing.getWidth(), imgDrawing.getHeight());
                 }
-                AffineTransform at2 = AffineTransform.getTranslateInstance(-200, 100);
-                at2.scale(.4, .4);
+                AffineTransform at2 = AffineTransform.getTranslateInstance(TRANSLATE_X, TRANSLATE_Y);
+                at2.scale(SCALE, SCALE);
                 try {
                     g2.transform(at2.createInverse());
                 } catch (NoninvertibleTransformException ex) {
@@ -383,8 +422,8 @@ public class PicoPrint {
         
         sb.append("G21\r\n");   // Coordonnees en mm
        // sb.append("M3 S0\r\n"); 
-        sb.append("G0 F4000\r\n"); // Vitesse de deplacement
-        sb.append("G1 F4000\r\n"); // Vitesse de tracé
+        sb.append("G0 F2000\r\n"); // Vitesse de deplacement
+        sb.append("G1 F2000\r\n"); // Vitesse de tracé
         sb.append("G90\r\n"); // en coordonnees absolues
         
         Pos pos;

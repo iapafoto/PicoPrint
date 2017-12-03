@@ -73,8 +73,8 @@ public class ImageToDrawEvaluateLine {
         JFrame editorFrame = new JFrame("Image Demo");
         editorFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-       // String filename = "C:\\Users\\durands\\Desktop\\cerf.png"; //visage.png"; //cerf.png";
-       String filename = "C:\\Users\\durands\\Desktop\\drawer\\1489679025811.jpg"; //noel.gif";//quest.png"; //visage.png"; //cerf.png";
+        String filename = "C:\\Users\\durands\\Desktop\\cerf.png"; //visage.png"; //cerf.png";
+      // String filename = "C:\\Users\\durands\\Desktop\\drawer\\1489679025811.jpg"; //noel.gif";//quest.png"; //visage.png"; //cerf.png";
         BufferedImage image = null;
         try {
             image = ImageIO.read(new File(filename));
