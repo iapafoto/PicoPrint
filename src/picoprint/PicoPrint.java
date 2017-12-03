@@ -183,7 +183,7 @@ public class PicoPrint {
 
 // - Extraction d'un path2D a partir d'une image -------------------------------
 
-        String filename = "C:\\Users\\durands\\Desktop\\highland-cow-bw-athena-mckinzie.jpg";
+        String filename = "C:\\Users\\durands\\Desktop\\cerf.png";
         BufferedImage image = null;
         try {
             image = ImageIO.read(new File(filename));
