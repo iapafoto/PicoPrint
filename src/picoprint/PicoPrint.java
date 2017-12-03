@@ -5,45 +5,22 @@
  */
 package picoprint;
 
-import bezier.BezierPath;
-import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Composite;
-import java.awt.Container;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Rectangle;
-import static java.awt.RenderingHints.KEY_ANTIALIASING;
-import static java.awt.RenderingHints.KEY_STROKE_CONTROL;
-import static java.awt.RenderingHints.VALUE_ANTIALIAS_ON;
-import static java.awt.RenderingHints.VALUE_STROKE_PURE;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Line2D;
-import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
+import static java.lang.Math.sqrt;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
-import static picoprint.ImageDemo.toCurvePath;
-import static picoprint.ImageToDrawEvaluateLine.PEN_BLACKNESS;
 import static picoprint.ImageToDrawEvaluateLine.lineDrawn;
-import static picoprint.ImageToDrawEvaluateLine.toLinePath;
 
 /**
  *
@@ -51,13 +28,6 @@ import static picoprint.ImageToDrawEvaluateLine.toLinePath;
  */
 public class PicoPrint {
     final static double pi4 = Math.PI/4;
-
-    
-    /*final static*/
-    static double
-                TRANSLATE_X = -200,
-                TRANSLATE_Y = 80,
-                SCALE = .4;
     
     final static double // all in mm
             R1 = 20,//26.42,
@@ -73,41 +43,72 @@ public class PicoPrint {
     
     static Rectangle2D DRAWING_AREA = new Rectangle2D.Double(CX1*.8, DISTANCE_AXES*.1, DISTANCE_AXES*.8, DISTANCE_AXES);
     
-    static double
-            refLength1 = convertPosToMove(POS_X0, POS_Y0, CX1, CY1, R1, 1),  // Longeur du fil quand le curseur est au point de reference
-            refLength2 = convertPosToMove(POS_X0, POS_Y0, CX2, CY2, R2, 1);  // Longeur du fil quand le curseur est au point de reference
+    static final double
+            REF_ROPE_LENGTH_1 = convertPosToMove(POS_X0, POS_Y0, CX1, CY1, R1, 1),  // Longeur du fil quand le curseur est au point de reference
+            REF_ROPE_LENGTH_2 = convertPosToMove(POS_X0, POS_Y0, CX2, CY2, R2, 1);  // Longeur du fil quand le curseur est au point de reference
     
-    public static class Pos {
-        double x;
-        double y;
-        boolean isDrawing;
-        public Pos(double x, double y, boolean isDrawing) {
-            this.x = x;
-            this.y = y;
-            this.isDrawing = isDrawing;
-        }
-        
-        double distance(Pos p) {
-            return Math.sqrt((p.x-x)*(p.x-x) + (p.y-y)*(p.y-y));
-        }
-    };
     
     // Calcul de la distance de corde necessaire pour une roue donnée
     // double sign = 1; // indique si on passe par au dessus (1) ou au dessous (!=1)
-    public static List<Double> convertPosToMove(double cx, double cy, double r, List<Pos> lst, double sign) {
-        List<Double> mv = new ArrayList(lst.size());
-       
-        for (Pos p : lst) {
-            mv.add(convertPosToMove(p.x, p.y, cx, cy, r, sign));
+  
+    public static Path2D convertPosToRopeLength(double cx1, double cy1, double r1, double cx2, double cy2, double r2, Shape shape, double sign) {
+        Path2D moves = new Path2D.Double();
+
+        final double[] crds = new double[2];
+        double d1, d2, x0=0, y0=0, xlast=0, ylast=0;
+
+        for (PathIterator pit = shape.getPathIterator(null, .1); !pit.isDone(); pit.next()) {
+            switch (pit.currentSegment(crds)) {
+                case PathIterator.SEG_MOVETO:
+                    d1 = convertPosToMove(crds[0], crds[1], cx1, cy1, r1, sign);
+                    d2 = convertPosToMove(crds[0], crds[1], cx1, cy1, r1, sign);
+                    x0=xlast=crds[0]; y0=ylast=crds[1];
+                    moves.moveTo(d1, d2);
+                    break;
+                case PathIterator.SEG_LINETO:
+                    // TODO si trop long depuis xlast, ylast couper en segments
+                    d1 = convertPosToMove(crds[0], crds[1], cx1, cy1, r1, sign);
+                    d2 = convertPosToMove(crds[0], crds[1], cx1, cy1, r1, sign);
+                    xlast=crds[0]; ylast=crds[1];
+                    moves.lineTo(d1, d2);
+                    break;
+                case PathIterator.SEG_CLOSE:
+                    // TODO si trop long entre xlast, ylast et x0, y0 couper en segments
+                    moves.closePath();
+                    break;
+                default:
+            }
         }
-        return mv;
+
+        return moves;
     }
 
+    public static double[] calcultePathLength(Shape shape) {
+        final double[] crds = new double[2];
+        double x0=0, y0=0, xlast=0, ylast=0;
+        double lengthMove = 0, lengthDraw = 0;
+
+        for (PathIterator pit = shape.getPathIterator(null, .1); !pit.isDone(); pit.next()) {
+            switch (pit.currentSegment(crds)) {
+                case PathIterator.SEG_MOVETO:
+                    lengthMove += sqrt((xlast-crds[0])*(xlast-crds[0]) + (ylast-crds[1])*(ylast-crds[1]));
+                    x0=xlast=crds[0]; y0=ylast=crds[1];
+                    break;
+                case PathIterator.SEG_LINETO:
+                    lengthDraw += sqrt((xlast-crds[0])*(xlast-crds[0]) + (ylast-crds[1])*(ylast-crds[1]));
+                    xlast=crds[0]; ylast=crds[1];
+                    break;
+                case PathIterator.SEG_CLOSE:
+                    lengthDraw += sqrt((xlast-x0)*(xlast-x0) + (ylast-y0)*(ylast-y0));
+                    break;
+                default:
+            }
+        }
+        return new double[] {lengthMove, lengthDraw};
+    }
+    
     private static double convertPosToMove(double x, double y, double cx, double cy, double r, double sign) {
-        double d;
-        double dt;
-        double e;
-        double length;
+        double d, dt, e;
         // Distance a l'axe
         d = Math.sqrt((cx-x)*(cx-x) + (cy-y)*(cy-y));
         // Distance a la partie tangente
@@ -115,78 +116,9 @@ public class PicoPrint {
         // Distance de corde enroulee (cas au dessus)
         e = r*(Math.asin(r/d) + Math.asin(Math.abs(cy-y)/d));
         // Distance totale
-        length = dt + (sign == 1 ? e : (pi4-e));
-        return length;
+        return dt + (sign == 1 ? e : (pi4-e));
     }
-    
-    public static List<Pos> convertPosToMove(double cx1, double cy1, double r1, double cx2, double cy2, double r2, List<Pos> lst, double sign) {
-        List<Double> mv1 = convertPosToMove(cx1, cy1, r1, lst, sign);
-        List<Double> mv2 = convertPosToMove(cx2, cy2, r2, lst, sign);
-        List<Pos> mv = new ArrayList(lst.size());
         
-        for (int i=0; i<lst.size(); i++) {
-            mv.add(new Pos(mv1.get(i), mv2.get(i), lst.get(i).isDrawing));
-        }
-        return mv;
-    }
-
-    public static double mix(final double v1, final double v2, final double k) {
-        return v1 + k*(v2 - v1);
-    }
-    
-    public static Pos mix(final Pos v1, final Pos v2, final double k) {
-        return new Pos(mix(v1.x, v2.x, k), mix(v1.y, v2.y, k), v2.isDrawing);
-    }
-
-    
-    public static List<Pos> extractPositions(final Shape shape) {
-            final PathIterator pit = shape.getPathIterator(null, .1);
-
-            List<Pos> lst = new ArrayList();
-            
-            if (pit.isDone()) {
-                return null;
-            }
-            
-            final double[] crds = new double[2];
-            double x0=0, y0=0, xlast=0, ylast=0;
-          
-            double distMove = 0, distDraw = 0;
-            
-            for (; !pit.isDone(); pit.next()) {
-                switch (pit.currentSegment(crds)) {
-                    case PathIterator.SEG_MOVETO:
-                        if (xlast != crds[0] || ylast != crds[1]) {
-                            distMove += Math.sqrt((xlast-crds[0])*(xlast-crds[0])+(ylast-crds[1])*(ylast-crds[1]));
-                            lst.add(new Pos(xlast = x0 = crds[0], ylast = y0 = crds[1], false));
-                        }
-                        break;
-                    case PathIterator.SEG_LINETO:
-                        if (xlast != crds[0] || ylast != crds[1]) {
-                            distDraw += Math.sqrt((xlast-crds[0])*(xlast-crds[0])+(ylast-crds[1])*(ylast-crds[1]));
-                            lst.add(new Pos(xlast = crds[0], ylast = crds[1], true));
-                        }
-                        break;
-                    case PathIterator.SEG_CLOSE:
-                        if (xlast != x0 || ylast != y0) {
-                            distDraw += Math.sqrt((xlast-x0)*(xlast-x0)+(ylast-y0)*(ylast-y0));
-                            lst.add(new Pos(x0, y0, true));
-                        }
-                        break;
-                    default:
-                }
-            }
-            
-            System.out.println("Distance Deplacement : " + (distMove/1000) + "m"); 
-            System.out.println("Distance Dessin      : " + (distDraw/1000) + "m"); 
-            System.out.println("Distance Totale      : " + ((distDraw+distMove)/1000) + "m"); 
-            return lst;
-        }
-    
-    public static Pos currentPos;
-    public static BufferedImage imgDrawing = null;
-            
-    
     public static Rectangle2D scaleRect(final Rectangle2D r, final double width, final double height) {
         // Calcul de l'aspect ratio
         final double k = height / width;
@@ -199,244 +131,157 @@ public class PicoPrint {
             return new Rectangle2D.Double(r.getX() + (r.getWidth() - wNew) / 2., r.getY(), wNew, r.getHeight());
         }
     }
-
     
+    
+    public static Path2D toCurvePath(double[] pts) {
+        Path2D path = new Path2D.Double();
+        double x,y,x2,y2;
+        x = (pts[0]+pts[2])/2.;
+        y = (pts[1]+pts[3])/2.;
+        
+        path.moveTo(x, y);
+        for (int i=2; i<pts.length-4; i+=2) {
+            x2 = (pts[i]+pts[i+2])/2.;
+            y2 = (pts[i+1]+pts[i+3])/2.;
+            path.quadTo(pts[i], pts[i+1], x2,y2);
+        }
+        return path;
+    }
+
+    public static Path2D toLinePath(double[] pts) {
+        Path2D path = new Path2D.Double();
+        double x,y;
+        x = pts[0]; y=pts[1];
+        path.moveTo(x, y);
+        for (int i=2; i<pts.length-2; i+=2) {
+            path.lineTo(pts[i], pts[i+1]);
+        }
+        return path;
+    }
+      
+      
     /**
      * @param args the command line arguments
+     * @throws java.io.IOException
      */
     public static void main(String[] args) throws IOException {
-         
-        double r1 = R1;
-        double cx1 = CX1, cy1 = CY1;
-        double r2 = R2;
-        double cx2 = CX2, cy2 = CY2;
-        double x0 = -200, y0 = 700;
+
         
-        File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\PicoPrint\\res\\drawingRaw.svg");
+    //    File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\PicoPrint\\res\\drawingRaw.svg");
     //    File svgFile = new File("C:\\Users\\durands\\Desktop\\FabLab\\renard.txt");
           // TODO code application logic here
-        BezierPath parser = new BezierPath();
-        try  {
-            BufferedReader r = Files.newBufferedReader(svgFile.toPath(), Charset.defaultCharset());
-            StringBuilder sb = new StringBuilder();
-            r.lines().forEach(line -> sb.append(line));
-            parser.parsePathString(sb.toString());
-            
-        } catch (IOException ex) {
-            Logger.getLogger(PicoPrint.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        /*
-        Path2D path = new Path2D.Double(parser.getPath2D(), AffineTransform.getScaleInstance(2,2));
-       path.transform(AffineTransform.getScaleInstance(.25, .25));
-       path.transform(AffineTransform.getTranslateInstance(x0, y0/2));
-        Rectangle rec =path.getBounds();
-       // path = moveTo()
-       double r = Math.max(rec.width, rec.height);
-        Path2D path2 = new Path2D.Double();
-        path2.append(new Ellipse2D.Double(rec.x, rec.y, r,r), false);
-        path2.append(new Ellipse2D.Double(rec.x, rec.y-r, r,r), false);
-        path2.append(new Ellipse2D.Double(rec.x+r, rec.y, r,r), false);
-        path2.append(new Ellipse2D.Double(rec.x+r, rec.y-r, r,r), false);
-        rec = path2.getBounds();
-        */
+//        SvgToPath parser = new SvgToPath();
+//        try  {
+//            BufferedReader r = Files.newBufferedReader(svgFile.toPath(), Charset.defaultCharset());
+//            StringBuilder sb = new StringBuilder();
+//            r.lines().forEach(line -> sb.append(line));
+//            parser.parsePathString(sb.toString());
+//            
+//        } catch (IOException ex) {
+//            Logger.getLogger(PicoPrint.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+
+// - Extraction d'un path2D a partir d'une image -------------------------------
+
         String filename = "C:\\Users\\durands\\Desktop\\highland-cow-bw-athena-mckinzie.jpg";
         BufferedImage image = null;
         try {
             image = ImageIO.read(new File(filename));
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
             System.exit(1);
         }
-      //  List<Path2D> pathRemix = toLinePath(makeBrownien(image));
-        List<Path2D> pathRemix = toCurvePath(ImageToDrawEvaluateLine.findDrawPath(image));
-        Path2D path = new Path2D.Double();
-        for (Path2D pa : pathRemix) {
-            path.append(pa, true);
-        }
         
-        if (lineDrawn != null) {
-            imgDrawing = new BufferedImage(lineDrawn.getWidth(), lineDrawn.getWidth(), BufferedImage.TYPE_INT_ARGB);
-        }
+        double[] path = ImageToDrawEvaluateLine.findDrawPath(image);
+       // double[] path = makeBrownien(image);
         
-        Rectangle2D bounds = path.getBounds2D();
+        Path2D drawingPath = toCurvePath(path); // toLinePath(path);
+
+        
+// - Recentrage / travail sur le dessin en coordonnees classique --------------- 
+    
+        // Redimensionnement pour etre bien centre dans la zone de dessin
         Rectangle2D recCenter = scaleRect(DRAWING_AREA, lineDrawn.getWidth(), lineDrawn.getHeight());
+        double scale = recCenter.getWidth()/lineDrawn.getWidth();
+        AffineTransform at = AffineTransform.getTranslateInstance(recCenter.getX(), recCenter.getY());    
+        at.scale(scale, scale);
         
-        SCALE = recCenter.getWidth()/lineDrawn.getWidth();
-        TRANSLATE_X = recCenter.getX();
-        TRANSLATE_Y = recCenter.getY();
+        // Calcul de la shape bien placé, bien scale, en mm 
+        drawingPath.transform(at);
         
-        AffineTransform at = AffineTransform.getTranslateInstance(TRANSLATE_X,TRANSLATE_Y);    
-        at.scale(SCALE, SCALE);
+        // Distance de parcours sur la feuille
+        double[] pathLength = calcultePathLength(drawingPath); // en mm
+        System.out.println("Distance Deplacement : " + (pathLength[0]/1000) + "m"); 
+        System.out.println("Distance Dessin      : " + (pathLength[1]/1000) + "m"); 
+        System.out.println("Distance Totale      : " + ((pathLength[0]+pathLength[1])/1000) + "m"); 
         
-        path.transform(at);
-        List<Pos> lstPositions = extractPositions(path);
-        List<Pos> lstMove = convertPosToMove(cx1, cy1, r1, cx2, cy2, r2, lstPositions, 1);
         
-        String gcode = toGCode(lstMove);
-        File file = new File("C:\\Users\\durands\\Desktop\\superman.gcode");
+// - Convertion en mouvements Polargraph ---------------------------------------
+    
+        // Calcul des longeurs de cordes necessaires sur chaques axes
+        Path2D ropeLengths = convertPosToRopeLength(CX1, CY1, R1, CX2, CY2, R2, drawingPath, 1);
+        
+        // Calcul des mouvements de motuurs necessaires pour obtenir ces longeurs de cordes
+        Shape motorMoves = ropeLengthsToMotorMoves(ropeLengths, GCODE_SCALE, REF_ROPE_LENGTH_1, REF_ROPE_LENGTH_2);
+        
+        // Extraction du GCode pour commander les moteurs
+        String gcode = toGCode(motorMoves);
+        
+        // Sauvegarde du GCode
+        File file = new File(filename+".gcode");
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
             writer.write(gcode);
         }
+     
         
+// - Simulation du rendu -------------------------------------------------------        
         
         JFrame frame = new JFrame();
 
         frame.setSize(800, 1000);
-        
-        currentPos = lstPositions.get(0);
-       
-        Container panel = new Container() {
-            @Override
-            public void paint(Graphics graphics) {
-                Graphics2D g2 = (Graphics2D) graphics;
-        
-             //   g2.scale(1.5,1.5);
-                g2.translate(400,60);
-                g2.setStroke(new BasicStroke(1));
-                g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
-                g2.setRenderingHint(KEY_STROKE_CONTROL, VALUE_STROKE_PURE);
-          
-                
-                g2.setColor(new Color(0,0,0, (int)ImageToDrawEvaluateLine.PEN_BLACKNESS));
-          //      g2.draw(path);
-                
-          
-                if (lineDrawn != null) {
-                    AffineTransform at2 = AffineTransform.getTranslateInstance(TRANSLATE_X, TRANSLATE_Y);
-                    at2.scale(SCALE, SCALE);
-                    g2.drawImage(imgDrawing, at, this);
-                    AlphaComposite ac = java.awt.AlphaComposite.getInstance(AlphaComposite.SRC_ATOP,0.25F);
-                    Composite acMem = g2.getComposite();
-                    g2.setComposite(ac);
-                    if (lineDrawn!=null) g2.drawImage(lineDrawn, at, this);
-                    g2.setComposite(acMem);
-                }
-
-                g2.drawOval((int)(cx1-r1),(int)(cy1-r2),(int)(2*r1),(int)(2*r1));
-                g2.drawOval((int)(cx2-r2),(int)(cy2-r2),(int)(2*r2),(int)(2*r2));
-                
-                double dtot = 850, d1, dt1, d2, dt2;
-                
-                // Distance a l'axe
-                d1 = Math.sqrt((cx1-currentPos.x)*(cx1-currentPos.x) + (cy1-currentPos.y)*(cy1-currentPos.y));
-                dt1 = Math.sqrt(d1*d1 - r1*r1);
-                // Distance de corde enroulee (cas au dessus)
-                double a1 = Math.asin(r1/d1) + Math.asin(Math.abs(cy1-currentPos.y)/d1);
-                double angle1 = -3.14-(Math.asin(r1/d1) + Math.asin(Math.abs(cy1-currentPos.y)/d1));
-                double intx1 = cx1 + r1*Math.sin(angle1);
-                double inty1 = cy1 + r1*Math.cos(angle1);
-                double length1 = a1*r1 + dt1;
-                
-                d2 = Math.sqrt((cx2-currentPos.x)*(cx2-currentPos.x) + (cy2-currentPos.y)*(cy2-currentPos.y));
-                dt2 = Math.sqrt(d2*d2 - r2*r2);
-                double a2 = Math.asin(r2/d2) + Math.asin(Math.abs(cy2-currentPos.y)/d2);
-                double angle2 = -3.14+(a2);
-                double intx2 = cx2 + r2*Math.sin(angle2);
-                double inty2 = cy2 + r2*Math.cos(angle2);
-                double length2 = a2*r2 + dt2;
-//                g2.draw(new Ellipse2D.Double(intx1-3,inty1-3,6,6));
-                
-                g2.setColor(currentPos.isDrawing ? Color.red : Color.green);
-                g2.draw(new Ellipse2D.Double(currentPos.x-3,currentPos.y-3,6,6));
-                
-                g2.setColor(Color.blue);                
-                g2.fill(new Ellipse2D.Double(cx1-r1-3, cy1 + (dtot - dt1)-3,6,6));
-                g2.setStroke(new BasicStroke(2.f, BasicStroke.JOIN_ROUND, BasicStroke.CAP_ROUND, 0, new float[] {10,10}, 0));
-                g2.draw(new Line2D.Double(currentPos.x,currentPos.y,intx1,inty1));
-                g2.draw(new Line2D.Double(cx1-r1, cy1 + (dtot - dt1), cx1-r1,cy1));
-                
-                AffineTransform memAT = g2.getTransform();
-                g2.rotate(length1/r1, cx1, cy1);
-                g2.setStroke(new BasicStroke(6.f,BasicStroke.JOIN_ROUND, BasicStroke.CAP_ROUND));
-                g2.draw(new Line2D.Double(cx1-10, cy1,cx1+10, cy1));
-                g2.draw(new Line2D.Double(cx1, cy1-10,cx1, cy1+10));
-                g2.setTransform(memAT);
-                
-                g2.setColor(Color.red);                
-                g2.fill(new Ellipse2D.Double(cx2+r2-3, cy2 + (dtot - dt2)-3,6,6));
-                g2.setStroke(new BasicStroke(2.f, BasicStroke.JOIN_ROUND, BasicStroke.CAP_ROUND, 0, new float[] {10,10}, 0));
-                g2.draw(new Line2D.Double(currentPos.x,currentPos.y,intx2,inty2));
-                g2.draw(new Line2D.Double(cx2+r2, cy2 + (dtot - dt2), cx2+r2,cy2));
-                
-           //     memAT = g2.getTransform();
-                g2.rotate(-length2/r2, cx2, cy2);
-                g2.setStroke(new BasicStroke(6.f,BasicStroke.JOIN_ROUND, BasicStroke.CAP_ROUND));
-                g2.draw(new Line2D.Double(cx2-10, cy2,cx2+10, cy2));
-                g2.draw(new Line2D.Double(cx2, cy2-10,cx2, cy2+10));
-                g2.setTransform(memAT);
-
-                g2.setColor(Color.red);
-                g2.draw(DRAWING_AREA);
-
-            }
-        };
-        
+        PreviewPanel panel = new PreviewPanel(CX1, CY1, R1, CX2, CY2, R2, at, lineDrawn, DRAWING_AREA);
         frame.setContentPane(panel);
-
         frame.setVisible(true);
-        Pos pos, lastPos = lstPositions.get(0);
         
-        double dt = .5;
-        for (int t=1; t<lstPositions.size(); t++) {
-            pos = lstPositions.get(t);
-            double dist = pos.distance(lastPos);
-            
-            for (double d=0; d<dist; d+=dt) {
-                currentPos = mix(lastPos,pos, Math.min(d/dist,1.));
-                panel.repaint();
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                
-            }
-
-            if (imgDrawing != null) {
-                Graphics2D g2 = (Graphics2D)imgDrawing.getGraphics();
-                g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
-                g2.setRenderingHint(KEY_STROKE_CONTROL, VALUE_STROKE_PURE);
-                if (t==1) {
-                    g2.setColor(Color.white);
-                    g2.fillRect(0,0, imgDrawing.getWidth(), imgDrawing.getHeight());
-                }
-                AffineTransform at2 = AffineTransform.getTranslateInstance(TRANSLATE_X, TRANSLATE_Y);
-                at2.scale(SCALE, SCALE);
-                try {
-                    g2.transform(at2.createInverse());
-                } catch (NoninvertibleTransformException ex) {
-                    Logger.getLogger(PicoPrint.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                g2.setColor(new Color(0,0,0,(int)PEN_BLACKNESS));
-//                g2.setStroke(new BasicStroke(.3f));                
-                g2.draw(new Line2D.Double(lastPos.x,lastPos.y,pos.x,pos.y));
-                g2.dispose();
-            }
-            
-            lastPos = pos;
-        }
+        panel.animatePanel(at, drawingPath, panel);
     }
     
-    public static String toGCode(List<Pos> lstPos) {
-        StringBuilder sb = new StringBuilder();
+  
+    
+    
+    public static String toGCode(final Shape shape) {
+        final StringBuilder sb = new StringBuilder();
         
         sb.append("G21\r\n");   // Coordonnees en mm
        // sb.append("M3 S0\r\n"); 
         sb.append("G0 F2000\r\n"); // Vitesse de deplacement
         sb.append("G1 F2000\r\n"); // Vitesse de tracé
         sb.append("G90\r\n"); // en coordonnees absolues
-        
-        Pos pos;
-        for (int i=0; i<lstPos.size(); i++) {
-            pos = lstPos.get(i);
-            if (pos.isDrawing) {
-                sb.append("G1");
-            } else {
-                sb.append("G0");    
+
+        final double[] c = new double[2];
+      
+        for (PathIterator pit = shape.getPathIterator(null, .1); !pit.isDone(); pit.next()) {
+            switch (pit.currentSegment(c)) {
+                case PathIterator.SEG_MOVETO:
+                    sb.append("G0").append(" X").append(c[0]).append(" Y").append(c[1]).append("\r\n");
+                    break;
+                case PathIterator.SEG_LINETO:
+                    sb.append("G1").append(" X").append(c[0]).append(" Y").append(c[1]).append("\r\n");
+                    break;
+                case PathIterator.SEG_CLOSE:
+                    sb.append("G1").append(" X").append(c[0]).append(" Y").append(c[1]).append("\r\n");
+                    break;
+                default:
             }
-            sb.append(" X").append(GCODE_SCALE*(pos.x-refLength1)).append(" Y").append(GCODE_SCALE*(pos.y-refLength2)).append("\r\n");
         }
         return sb.toString();
     }
+    
+
+    public static Shape ropeLengthsToMotorMoves(Shape ropeLengths, double gcodeScale, double refLength1, double refLength2) {
+        AffineTransform af = AffineTransform.getScaleInstance(gcodeScale, gcodeScale);
+        af.translate(-refLength1, -refLength2);
+        return af.createTransformedShape(ropeLengths);
+    }
+    
     
 }

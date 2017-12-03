@@ -5,7 +5,7 @@
  */
 package picoprint;
 
-import bezier.BezierPath;
+import bezier.SvgToPath;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.util.ArrayList;
@@ -152,7 +152,7 @@ public class FontSvg {
     static List<Path2D> svgToPath(String[] chars) {      
         List<Path2D> font2Path = new ArrayList(chars.length);
         for (String svg : chars) {
-            font2Path.add(BezierPath.parsePathString(svg));
+            font2Path.add(SvgToPath.parsePathString(svg));
         }
         return font2Path;
     }
