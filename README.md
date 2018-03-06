@@ -12,8 +12,12 @@ Drawing simulation
 
 ![Alt text](https://raw.githubusercontent.com/iapafoto/PicoPrint/master/res/gui.png)
 
-Real life plotter
+# Real life plotter
 
 ![Alt text](https://raw.githubusercontent.com/iapafoto/PicoPrint/master/media/picoprint.png)
 
 ![Alt text](https://raw.githubusercontent.com/iapafoto/PicoPrint/master/media/drawer.png)
+
+# Video in action
+
+https://www.youtube.com/watch?v=kPk2XT6VtGk
