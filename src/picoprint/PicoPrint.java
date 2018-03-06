@@ -15,6 +15,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import static java.lang.Math.abs;
+import static java.lang.Math.asin;
 import static java.lang.Math.sqrt;
 import java.util.ArrayList;
 import java.util.List;
@@ -110,15 +112,16 @@ public class PicoPrint {
     private static double convertPosToMove(double x, double y, double cx, double cy, double r, double sign) {
         double d, dt, e;
         // Distance a l'axe
-        d = Math.sqrt((cx-x)*(cx-x) + (cy-y)*(cy-y));
+        d = sqrt((cx-x)*(cx-x) + (cy-y)*(cy-y));
         // Distance a la partie tangente
-        dt = Math.sqrt(d*d - r*r);
+        dt = sqrt(d*d - r*r);
         // Distance de corde enroulee (cas au dessus)
-        e = r*(Math.asin(r/d) + Math.asin(Math.abs(cy-y)/d));
+        e = r*(asin(r/d) + asin(abs(cy-y)/d));
         // Distance totale
         return dt + (sign == 1 ? e : (pi4-e));
     }
-        
+    
+
     public static Rectangle2D scaleRect(final Rectangle2D r, final double width, final double height) {
         // Calcul de l'aspect ratio
         final double k = height / width;
@@ -245,9 +248,14 @@ public class PicoPrint {
         panel.animatePanel(at, drawingPath, panel);
     }
     
-  
+
+    public static String gCodeConverter(final String gCode) {
+        String[] gCodeLines = gCode.split("\r\n");
+        String[] gCodeConvertedLines = gCodeConverter(gCodeLines);
+        return String.join("\r\n", gCodeConvertedLines);
+    }
     
-    
+
     public static String toGCode(final Shape shape) {
         final StringBuilder sb = new StringBuilder();
         
@@ -282,6 +290,123 @@ public class PicoPrint {
         af.translate(-refLength1, -refLength2);
         return af.createTransformedShape(ropeLengths);
     }
+    
+
+    private static double convertPosToMove1(double x, double y) {
+        return GCODE_SCALE*(convertPosToMove(x,y, CX1, CY1, R1, 1)-REF_ROPE_LENGTH_1);
+    }
+    
+    private static double convertPosToMove2(double x, double y) {
+        return GCODE_SCALE*(convertPosToMove(x,y, CX2, CY2, R2, 1)-REF_ROPE_LENGTH_2);   
+    }
+    
+    public static int getEndsOfDigit(String str, int pos){
+        char c;
+        for (; pos<str.length(); pos++) {
+            c = str.charAt(pos);              
+            if (c != ' ' && c != '-' && c != '.' && !Character.isDigit(c))
+                break;
+        }
+        return pos;
+    }
+    
+    private static Double getValueOf(String key, String line, int[] pos) {
+        pos[0] = line.indexOf(key);
+        if (pos[0] >=0) {
+            pos[1] = getEndsOfDigit(line, pos[0]);
+            return Double.parseDouble(line.substring(pos[0], pos[1]));
+        }
+        return null;
+    }
+
+    public final static double INCHES_TO_MILLIMETERS = 25.4;
+    
+    public static String[] gCodeConverter(final String[] gCode) {
+        List<String> converted = new ArrayList(gCode.length);
+        boolean isMillimeter = true, isAbsolutePosition = true;
+        Double x, y, f;
+        double newF, newX, newY, lastX = 0, lastY = 0;
+        
+        int[] posF = {0,0};
+        int[] posX = {0,0};
+        int[] posY = {0,0};
+        
+        boolean withX, withY;
+        
+        for(String line : gCode) {
+            line = line.trim();
+            line = line.toUpperCase();
+            
+      //      if (G21) // mm
+            if (line.contains("G21")) {
+                isMillimeter = true; // mm
+            } else if (line.contains("G20")) {
+                isMillimeter = false; // Inches
+            }
+            if (line.contains("G90")) {
+                isAbsolutePosition = true;
+            } else if (line.contains("G91")) {
+                isAbsolutePosition = false;
+            }
+            
+            if (line.contains("F")) {
+                // convert Speed
+                f = getValueOf("F", line, posF);
+                newF = f*2;
+                line = String.format("%s F%.4f %s", line.substring(0,posF[0]), newF, line.substring(posF[1]));
+            }
+            
+            withX = line.contains("X");
+            withY = line.contains("Y");
+            
+            if (withX ||withY) {
+                // Convert position                
+                x = withX ? getValueOf("X", line, posX) : lastX;
+                y = withY ? getValueOf("Y", line, posY) : lastY;
+                
+                if (x == null || y == null) {
+                    // pb !!!
+                } else {
+                    int start, end;
+                    if (withX && withY) {                        
+                        // On vire le dernier emplacement on va tout ecrire au premier emplacement
+                        line = String.format("%s %s", line.substring(0, posX[0] > posY[0] ? posX[0] : posY[0]), line.substring(posX[0] > posY[0] ? posX[1] : posY[1]));
+                        start = posX[0] < posY[0] ? posX[0] : posY[0];
+                        end = posX[0] < posY[0] ? posX[0] : posY[0];
+                    } else {
+                        start = withX ? posX[0] : posY[0];
+                        end = withX ? posX[1] : posY[1];
+                    } 
+                    
+                    lastX = x;
+                    lastY = y;
+                    
+                    // is isMillimeter
+                    if (!isMillimeter) {
+                        // inches to millimeter
+                        x /= INCHES_TO_MILLIMETERS;
+                        y /= INCHES_TO_MILLIMETERS;
+                    }
+                    
+                    // Do conversion
+                    newX = convertPosToMove1(x, y);
+                    newY = convertPosToMove2(x, y);
+                    
+                    if (!isMillimeter) {
+                        // millimeter to inches
+                        newX *= INCHES_TO_MILLIMETERS;
+                        newY *= INCHES_TO_MILLIMETERS;
+                    }
+                    line = String.format("%s X%.4f Y%.4f %s", line.substring(0,start), newX, newY, line.substring(end));
+                }
+            }
+            converted.add(line);
+        }
+        
+        return converted.toArray(new String[converted.size()]);
+    }
+    
+ 
     
     
 }

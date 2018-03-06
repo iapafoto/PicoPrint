@@ -2,14 +2,9 @@
 <project-private xmlns="http://www.netbeans.org/ns/project-private/1">
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
-        <group>
-            <file>file:/C:/Users/durands/Desktop/FabLab/PicoPrint/src/picoprint/PicoPrint.java</file>
+        <group/>
+        <group name="SynclientMfi">
             <file>file:/C:/Users/durands/Desktop/FabLab/PicoPrint/src/picoprint/PreviewPanel.java</file>
-            <file>file:/C:/Users/durands/Desktop/FabLab/PicoPrint/src/bezier/ParseException.java</file>
-            <file>file:/C:/Users/durands/Desktop/FabLab/PicoPrint/src/bezier/SvgToPath.java</file>
-            <file>file:/C:/Users/durands/Desktop/FabLab/PicoPrint/src/bezier/BezierListProducer.java</file>
-            <file>file:/C:/Users/durands/Desktop/FabLab/PicoPrint/src/picoprint/ImageToDrawEvaluateLine.java</file>
-            <file>file:/C:/Users/durands/Desktop/FabLab/PicoPrint/src/picoprint/ImageDemo.java</file>
         </group>
     </open-files>
 </project-private>
