@@ -1,10 +1,9 @@
 # PicoPrint
 
-Test application to build a polargraph like printer
+Application to build a polargraph like printer
 
-Work in progress.
 
-Image to continuous line vectorial path
+Transform a picture to a continuous line vectorial path
 
 ![Alt text](https://raw.githubusercontent.com/iapafoto/PicoPrint/master/res/PictureToPath.png)
 
